@@ -114,7 +114,7 @@ public abstract class BasePostServiceImpl<POST extends BasePost> extends Abstrac
 
 
     @Override
-    public List<POST> listPrePosts(Date date, int size) {
+    public List<POST> listPrevPosts(Date date, int size) {
         Assert.notNull(date, "Date must not be null");
 
         return basePostRepository.findAllByStatusAndCreateTimeAfter(PostStatus.PUBLISHED,
@@ -134,8 +134,8 @@ public abstract class BasePostServiceImpl<POST extends BasePost> extends Abstrac
     }
 
     @Override
-    public Optional<POST> getPrePost(Date date) {
-        List<POST> posts = listPrePosts(date, 1);
+    public Optional<POST> getPrevPost(Date date) {
+        List<POST> posts = listPrevPosts(date, 1);
 
         return CollectionUtils.isEmpty(posts) ? Optional.empty() : Optional.of(posts.get(0));
     }
@@ -423,6 +423,21 @@ public abstract class BasePostServiceImpl<POST extends BasePost> extends Abstrac
         });
         List<POST> updated = updateInBatch(replaced);
         return updated.stream().map(this::convertToDetail).collect(Collectors.toList());
+    }
+
+    @Override
+    public String generateDescription(String content) {
+        Assert.notNull(content, "html content must not be null");
+
+        String text = HaloUtils.cleanHtmlTag(content);
+
+        Matcher matcher = summaryPattern.matcher(text);
+        text = matcher.replaceAll("");
+
+        // Get summary length
+        Integer summaryLength = optionService.getByPropertyOrDefault(PostProperties.SUMMARY_LENGTH, Integer.class, 150);
+
+        return StringUtils.substring(text, 0, summaryLength);
     }
 
     @Override

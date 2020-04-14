@@ -28,7 +28,9 @@ public class CategoryTagDirective implements TemplateDirectiveModel {
 
     private final PostCategoryService postCategoryService;
 
-    public CategoryTagDirective(Configuration configuration, CategoryService categoryService, PostCategoryService postCategoryService) {
+    public CategoryTagDirective(Configuration configuration,
+                                CategoryService categoryService,
+                                PostCategoryService postCategoryService) {
         this.categoryService = categoryService;
         this.postCategoryService = postCategoryService;
         configuration.setSharedVariable("categoryTag", this);
@@ -43,6 +45,9 @@ public class CategoryTagDirective implements TemplateDirectiveModel {
             switch (method) {
                 case "list":
                     env.setVariable("categories", builder.build().wrap(postCategoryService.listCategoryWithPostCountDto(Sort.by(DESC, "createTime"))));
+                    break;
+                case "tree":
+                    env.setVariable("categories", builder.build().wrap(categoryService.listAsTree(Sort.by(DESC, "createTime"))));
                     break;
                 case "listByPostId":
                     Integer postId = Integer.parseInt(params.get("postId").toString());

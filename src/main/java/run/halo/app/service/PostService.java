@@ -52,12 +52,12 @@ public interface PostService extends BasePostService<Post> {
      * @param post        post must not be null
      * @param tagIds      tag id set
      * @param categoryIds category id set
-     * @param postMetas   post metas
+     * @param metas       metas
      * @param autoSave    autoSave
      * @return post created
      */
     @NonNull
-    PostDetailVO createBy(@NonNull Post post, Set<Integer> tagIds, Set<Integer> categoryIds, Set<PostMeta> postMetas, boolean autoSave);
+    PostDetailVO createBy(@NonNull Post post, Set<Integer> tagIds, Set<Integer> categoryIds, Set<PostMeta> metas, boolean autoSave);
 
     /**
      * Creates post by post param.
@@ -77,11 +77,12 @@ public interface PostService extends BasePostService<Post> {
      * @param postToUpdate post to update must not be null
      * @param tagIds       tag id set
      * @param categoryIds  category id set
+     * @param metas        metas
      * @param autoSave     autoSave
      * @return updated post
      */
     @NonNull
-    PostDetailVO updateBy(@NonNull Post postToUpdate, Set<Integer> tagIds, Set<Integer> categoryIds, Set<PostMeta> postMetas, boolean autoSave);
+    PostDetailVO updateBy(@NonNull Post postToUpdate, Set<Integer> tagIds, Set<Integer> categoryIds, Set<PostMeta> metas, boolean autoSave);
 
     /**
      * Gets post by post status and slug.
@@ -257,8 +258,8 @@ public interface PostService extends BasePostService<Post> {
      * Gets pre && next post.
      *
      * @param currentPost post must not be null
-     * @return AdjacentPostVO. it contains prePost and nextPost.
-     * AdjacentPostVO will not be null. But prePost and nextPost may be null.
+     * @return AdjacentPostVO. it contains prevPost and nextPost.
+     * AdjacentPostVO will not be null. But prevPost and nextPost may be null.
      */
     @NotNull
     AdjacentPostVO getAdjacentPosts(Post currentPost);

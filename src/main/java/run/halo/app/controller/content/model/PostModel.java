@@ -1,6 +1,5 @@
 package run.halo.app.controller.content.model;
 
-import cn.hutool.core.util.PageUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -8,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.ui.Model;
-import run.halo.app.cache.StringCacheStore;
+import run.halo.app.cache.AbstractStringCacheStore;
 import run.halo.app.exception.ForbiddenException;
 import run.halo.app.model.entity.Category;
 import run.halo.app.model.entity.Post;
@@ -24,6 +23,7 @@ import run.halo.app.service.*;
 import run.halo.app.utils.MarkdownUtils;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Post Model
@@ -50,7 +50,7 @@ public class PostModel {
 
     private final OptionService optionService;
 
-    private final StringCacheStore cacheStore;
+    private final AbstractStringCacheStore cacheStore;
 
     public PostModel(PostService postService,
                      ThemeService themeService,
@@ -60,7 +60,7 @@ public class PostModel {
                      PostTagService postTagService,
                      TagService tagService,
                      OptionService optionService,
-                     StringCacheStore cacheStore) {
+                     AbstractStringCacheStore cacheStore) {
         this.postService = postService;
         this.themeService = themeService;
         this.postCategoryService = postCategoryService;
@@ -97,21 +97,32 @@ public class PostModel {
         postService.publishVisitEvent(post.getId());
 
         AdjacentPostVO adjacentPostVO = postService.getAdjacentPosts(post);
-        adjacentPostVO.getOptionalPrePost().ifPresent(prePost -> model.addAttribute("prePost", postService.convertToDetailVo(prePost)));
+        adjacentPostVO.getOptionalPrevPost().ifPresent(prevPost -> model.addAttribute("prevPost", postService.convertToDetailVo(prevPost)));
         adjacentPostVO.getOptionalNextPost().ifPresent(nextPost -> model.addAttribute("nextPost", postService.convertToDetailVo(nextPost)));
 
         List<Category> categories = postCategoryService.listCategoriesBy(post.getId());
         List<Tag> tags = postTagService.listTagsBy(post.getId());
         List<PostMeta> metas = postMetaService.listBy(post.getId());
 
+        // Generate meta keywords.
+        if (StringUtils.isNotEmpty(post.getMetaKeywords())) {
+            model.addAttribute("meta_keywords", post.getMetaKeywords());
+        } else {
+            model.addAttribute("meta_keywords", tags.stream().map(Tag::getName).collect(Collectors.joining(",")));
+        }
+
+        // Generate meta description.
+        if (StringUtils.isNotEmpty(post.getMetaDescription())) {
+            model.addAttribute("meta_description", post.getMetaDescription());
+        } else {
+            model.addAttribute("meta_description", postService.generateDescription(post.getFormatContent()));
+        }
+
         model.addAttribute("is_post", true);
         model.addAttribute("post", postService.convertToDetailVo(post));
         model.addAttribute("categories", categoryService.convertTo(categories));
         model.addAttribute("tags", tagService.convertTo(tags));
         model.addAttribute("metas", postMetaService.convertToMap(metas));
-
-        // TODO,Will be deprecated
-        model.addAttribute("comments", Page.empty());
 
         if (themeService.templateExists(
             ThemeService.CUSTOM_POST_PREFIX + post.getTemplate() + HaloConst.SUFFIX_FTL)) {
@@ -129,41 +140,15 @@ public class PostModel {
         Page<Post> postPage = postService.pageBy(PostStatus.PUBLISHED, pageable);
         Page<PostListVO> posts = postService.convertToListVo(postPage);
 
-        // TODO remove this variable
-        int[] rainbow = PageUtil.rainbow(page, posts.getTotalPages(), 3);
-
-        // Next page and previous page url.
-        StringBuilder nextPageFullPath = new StringBuilder();
-        StringBuilder prePageFullPath = new StringBuilder();
-
-        if (optionService.isEnabledAbsolutePath()) {
-            nextPageFullPath.append(optionService.getBlogBaseUrl());
-            prePageFullPath.append(optionService.getBlogBaseUrl());
-        }
-
-        nextPageFullPath.append("/page/")
-            .append(posts.getNumber() + 2)
-            .append(optionService.getPathSuffix());
-
-        if (posts.getNumber() == 1) {
-            prePageFullPath.append("/");
-        } else {
-            prePageFullPath.append("/page/")
-                .append(posts.getNumber())
-                .append(optionService.getPathSuffix());
-        }
-
         model.addAttribute("is_index", true);
         model.addAttribute("posts", posts);
-        model.addAttribute("rainbow", rainbow);
-        model.addAttribute("pageRainbow", rainbow);
-        model.addAttribute("nextPageFullPath", nextPageFullPath.toString());
-        model.addAttribute("prePageFullPath", prePageFullPath.toString());
+        model.addAttribute("meta_keywords", optionService.getSeoKeywords());
+        model.addAttribute("meta_description", optionService.getSeoDescription());
         return themeService.render("index");
     }
 
     public String archives(Integer page, Model model) {
-        int pageSize = optionService.getPostPageSize();
+        int pageSize = optionService.getArchivesPageSize();
         Pageable pageable = PageRequest
             .of(page >= 1 ? page - 1 : page, pageSize, Sort.by(Sort.Direction.DESC, "createTime"));
 
@@ -173,42 +158,11 @@ public class PostModel {
 
         List<ArchiveYearVO> archives = postService.convertToYearArchives(postPage.getContent());
 
-        // TODO remove this variable
-        int[] rainbow = PageUtil.rainbow(page, posts.getTotalPages(), 3);
-
-        // Next page and previous page url.
-        StringBuilder nextPageFullPath = new StringBuilder();
-        StringBuilder prePageFullPath = new StringBuilder();
-
-        if (optionService.isEnabledAbsolutePath()) {
-            nextPageFullPath.append(optionService.getBlogBaseUrl());
-            prePageFullPath.append(optionService.getBlogBaseUrl());
-        }
-
-        nextPageFullPath.append("/")
-            .append(optionService.getArchivesPrefix());
-        prePageFullPath.append("/")
-            .append(optionService.getArchivesPrefix());
-
-        nextPageFullPath.append("/page/")
-            .append(posts.getNumber() + 2)
-            .append(optionService.getPathSuffix());
-
-        if (posts.getNumber() == 1) {
-            prePageFullPath.append("/");
-        } else {
-            prePageFullPath.append("/page/")
-                .append(posts.getNumber())
-                .append(optionService.getPathSuffix());
-        }
-
         model.addAttribute("is_archives", true);
         model.addAttribute("posts", posts);
         model.addAttribute("archives", archives);
-        model.addAttribute("rainbow", rainbow);
-        model.addAttribute("pageRainbow", rainbow);
-        model.addAttribute("nextPageFullPath", nextPageFullPath.toString());
-        model.addAttribute("prePageFullPath", prePageFullPath.toString());
+        model.addAttribute("meta_keywords", optionService.getSeoKeywords());
+        model.addAttribute("meta_description", optionService.getSeoDescription());
         return themeService.render("archives");
     }
 }
